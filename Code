@@ -1,0 +1,90 @@
+import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+import openpyxl
+import re
+import time
+
+
+def is_valid_email(email):
+    # Email address validation using regular expression
+    pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+    return re.match(pattern, email)
+
+
+def send_email(sender_email, sender_password, recipient_email, subject, message, attachment_path):
+    # Set up the email message
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = recipient_email
+    msg['Subject'] = subject
+
+    # Attach the message body
+    msg.attach(MIMEText(message, 'plain'))
+
+    # Attach the file
+    if attachment_path:
+        attachment = open(attachment_path, 'rb')
+        filename = os.path.basename(attachment_path)  # Extract the original filename
+        part = MIMEBase('application', 'octet-stream')
+        part.set_payload((attachment).read())
+        encoders.encode_base64(part)
+        part.add_header('Content-Disposition', 'attachment', filename=filename)
+        msg.attach(part)
+
+    # Connect to the SMTP server
+    server = smtplib.SMTP('smtp.gmail.com', 587)  # Update with your email provider's SMTP server
+    # server.set_debuglevel(1)
+
+    # Start the TLS encryption
+    server.starttls()
+
+    # Log in to your email account
+    server.login(sender_email, sender_password)
+
+    # Send the email
+    server.send_message(msg)
+
+    # Close the connection
+    server.quit()
+
+
+# Define your email settings
+sender_email = '(your email)'
+sender_password = '(email password)'
+subject = '(Subject)'
+
+attachment_path = '(link to the attachment)'
+
+# Read recipient email addresses from Excel file starting from the k-th row and limit to n rows
+wb = openpyxl.load_workbook('(link to the excel file with recipients' emails)')
+ws = wb[input('Enter a sheet name: ')]  # Specify sheet name or index or just 'wb.active' (by default the first sheet)
+recipient_emails = []
+recipient_names = []
+for row in ws.iter_rows(min_row=0, max_row=100, values_only=True):
+    recipient_email = row[5]  # Assuming the email addresses are in the 6th column (F)
+    recipient_name = row[0]
+    if recipient_email and is_valid_email(recipient_email):
+        recipient_emails.append(recipient_email)
+        recipient_names.append(recipient_name)
+
+
+# Send email to each recipient
+for recipient_email, recipient_name in zip(recipient_emails, recipient_names):
+    message = f"Dear {recipient_name} team,"
+              f"\n\nYours sincerely," \
+              f"\n(Your name)"
+
+    send_email(sender_email, sender_password, recipient_email, subject, message, attachment_path)
+    print(f"Email sent to {recipient_email}")
+
+    time.sleep(3)
+
+
+
+
+
+
